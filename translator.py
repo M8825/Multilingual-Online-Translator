@@ -1,12 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
+import argparse
+import sys
 
 LANGS = ['Arabic', 'German', 'English', 'Spanish', 'French', 'Hebrew', 'Japanese',
          'Dutch', 'Polish', 'Portuguese', 'Romanian', 'Russian', 'Turkish']
-
-
-def get_list(lst):
-    return [i.text.strip() for i in lst]
 
 
 def get_req(usr_lang, target_lang, word):
@@ -17,9 +15,8 @@ def get_req(usr_lang, target_lang, word):
 
 
 def writeto_file(word, req, lang):
-    file = open(f'{word}.txt', 'a', encoding='utf-8')
-
     if req.status_code == 200:  # Got response
+        file = open(f'{word}.txt', 'a', encoding='utf-8')
         soup = BeautifulSoup(req.content, 'html.parser')
 
         file.write(f'\n{lang} Translations:\n')
@@ -32,36 +29,39 @@ def writeto_file(word, req, lang):
 
         file.write(base_examples.text.strip() + '\n')
         file.write(trg_examples.text.strip() + '\n')
-
-    file.close()
-
-
-def get_inputs():
-    usr_lang = LANGS[int(input('Type the number of your language:\n')) - 1].lower()
-    target_lang = int(input("Type the number of a language you want to translate to or '0' to translate to all languages:\n"))
-    word = input('Type the word you want to translate:\n')
-
-    return usr_lang, target_lang, word
+        file.close()
+    elif req.status_code == 404:
+        print(f'Sorry, unable to find{word}')
+        sys.exit(0)
+    else:
+        print('Something wrong with your internet connection')
+        sys.exit(0)
 
 
 def main():
-    print("Hello, you're welcome to the translator. Translator supports: ")
-    for i, lang in enumerate(LANGS):
-        print(f'{i + 1}. {lang}')
+    # Take command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputs", nargs=3)
+    args = parser.parse_args()
 
-    usr_lang, target_lang, word = get_inputs()
+    usr_lang, target_lang, word = args.inputs[0], args.inputs[1], args.inputs[2]
 
-    if target_lang == 0:  # Translate into all available languages
+    if usr_lang.capitalize() not in LANGS:
+        print(f"Sorry, the program doesn't support {usr_lang}")
+        sys.exit(0)
+    elif target_lang.capitalize() not in LANGS and target_lang != 'all':
+        print(f"Sorry, the program doesn't support {target_lang}")
+        sys.exit(0)
+
+    if target_lang == 'all':  # Translate into all available languages
         for lang in LANGS:
             target_lang = lang.lower()
-
             if usr_lang == target_lang:
                 continue
 
             req = get_req(usr_lang, target_lang, word)
             writeto_file(word, req, lang)
     else:  # Translate into target language
-        target_lang = LANGS[target_lang - 1].lower()  # Assign target language from list
         req = get_req(usr_lang, target_lang, word)
         writeto_file(word, req, target_lang)
 
